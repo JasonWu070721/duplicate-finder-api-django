@@ -1,0 +1,26 @@
+{
+    "md5_group_list": {
+        "e1cf82f7ef698ef81f765e609bb43e3c": [
+            {
+                "file_path": "/var/services/homes/jasonwu/Photos/生活照片/施郁婷資料庫.照片/手機裡照片/1825681694.jpg",
+                "md5": "e1cf82f7ef698ef81f765e609bb43e3c",
+                "file_size": 159003,
+                "file_mtime": 1230870112.375,
+                "file_ctime": 1615445825.2048326,
+                "file_extension": ".jpg"
+            },
+            {
+                "file_path": "/var/services/homes/jasonwu/Photos/生活照片/施郁婷資料庫.照片/手機裡照片/1825681695.jpg",
+                "md5": "e1cf82f7ef698ef81f765e609bb43e3c",
+                "file_size": 159003,
+                "file_mtime": 1230870123.015625,
+                "file_ctime": 1615445825.2058325,
+                "file_extension": ".jpg"
+            }
+        ]
+    },
+    "file_paths": [
+        "/var/services/homes/jasonwu/Photos/生活照片/施郁婷資料庫.照片"
+    ],
+    "create_time": "2022/03/16 20:03:58"
+}
