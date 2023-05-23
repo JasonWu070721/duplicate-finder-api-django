@@ -14,11 +14,13 @@ import time
 from datetime import datetime
 import sqlite3
 
-
 IF_GET_CHECKSUM = False
 
 con = sqlite3.connect("file_info.db")
 cur = con.cursor()
+
+cur.execute("DROP TABLE IF EXISTS files")
+
 cur.execute("CREATE TABLE IF NOT EXISTS files(\
     id INTEGER PRIMARY KEY AUTOINCREMENT, \
     file_path TEXT, \
@@ -29,8 +31,7 @@ cur.execute("CREATE TABLE IF NOT EXISTS files(\
     )")
 
 # synology, windows
-OS_TYPE = "synology"
-
+OS_TYPE = "windows"
 
 class Main:
 
@@ -100,6 +101,7 @@ class Main:
                 path = os.path.join(root, file)
                 # print(path)
                 file_list.append(path)
+        # print(file_list)
 
         return file_list
 
@@ -112,10 +114,16 @@ if __name__ == '__main__':
     main = Main()
 
     log = main.logger()
-    file_list = main.get_file_list("D:\\LS1046A_Document")
+    file_list = main.get_file_list("/home/jason/side_project/car_repair_web_react")
+    
+    file_count = 0
 
     for file in file_list:
+        # print(file)
         file_status = main.get_file_info(file)
+        
+        file_count = file_count + 1
+        print("File count: ", file_count)
 
         sql = f'INSERT INTO files ( \
             file_path, \
