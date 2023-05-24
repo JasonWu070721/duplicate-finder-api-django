@@ -19,11 +19,13 @@ import os
 
 IF_GET_CHECKSUM = False
 OS_TYPE = "windows"  # synology, windows
+IS_CLEAR_FILE_TABLE = False
 
 con = sqlite3.connect("file_info.db")
 cur = con.cursor()
 
-# cur.execute("DROP TABLE IF EXISTS files")
+if IS_CLEAR_FILE_TABLE:
+    cur.execute("DROP TABLE IF EXISTS files")
 
 cur.execute("CREATE TABLE IF NOT EXISTS files(\
     id INTEGER PRIMARY KEY AUTOINCREMENT, \
@@ -156,7 +158,11 @@ if __name__ == '__main__':
 
     file_count = 0
 
+    file_amount = len(file_list)
+
     for file_path in file_list:
+        file_count = file_count + 1
+        print("Progress bar: ", file_count, " / ", file_amount)
 
         files_db = main.get_file_db(file_path)
         if len(files_db) > 0:
@@ -174,8 +180,6 @@ if __name__ == '__main__':
             continue
 
         file_status = main.get_file_info(file_path)
-
-        file_count = file_count + 1
 
         created_at = datetime.datetime.now()
 
