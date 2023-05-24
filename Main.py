@@ -5,41 +5,47 @@ import logging
 import sys
 from os import walk
 import json
-from operator import itemgetter
-from itertools import groupby
 
-from multiprocessing import Pool
-import asyncio
-import time
 from datetime import datetime
 import sqlite3
 import datetime
 
-import os
+from contextlib import closing
 
-IF_GET_CHECKSUM = False
+import os
+import multiprocessing
+
+IF_GET_CHECKSUM = True
 OS_TYPE = "windows"  # synology, windows
 IS_CLEAR_FILE_TABLE = False
 
-con = sqlite3.connect("file_info.db")
-cur = con.cursor()
-
-if IS_CLEAR_FILE_TABLE:
-    cur.execute("DROP TABLE IF EXISTS files")
-
-cur.execute("CREATE TABLE IF NOT EXISTS files(\
-    id INTEGER PRIMARY KEY AUTOINCREMENT, \
-    file_path TEXT, \
-    md5, file_size TEXT, \
-    file_mtime FLOAT, \
-    file_ctime FLOAT, \
-    file_extension TEXT, \
-    created_at timestamp, \
-    updated_at timestamp \
-    )")
-
 
 class Main:
+
+    db_file = "file_info.db"
+    file_count = 0
+    file_amount = 0
+
+    def init_db(self):
+
+        with closing(sqlite3.connect(self.db_file)) as cnn:
+            cursor = cnn.cursor()
+
+            if IS_CLEAR_FILE_TABLE:
+                cursor.execute("DROP TABLE IF EXISTS files")
+
+            cursor.execute("CREATE TABLE IF NOT EXISTS files(\
+                id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                file_path TEXT, \
+                md5, file_size TEXT, \
+                file_mtime FLOAT, \
+                file_ctime FLOAT, \
+                file_extension TEXT, \
+                created_at timestamp, \
+                updated_at timestamp \
+                )")
+
+            cnn.commit()
 
     def logger(self):
 
@@ -85,10 +91,11 @@ class Main:
 
         return False
 
-    def get_file_info(self, file_path):
+    def get_file_info(self, file_path, get_md5=False):
         md5 = None
-        if IF_GET_CHECKSUM:
+        if get_md5:
             md5 = self.get_md5(file_path)
+            print(md5)
         file_size = os.path.getsize(file_path)
         file_mtime = os.path.getmtime(file_path)
         file_ctime = os.path.getctime(file_path)
@@ -116,53 +123,52 @@ class Main:
 
         return file_list
 
-    def sort(self):
-        print("sort")
+    def order_file_table(self, column_name):
+        with closing(sqlite3.connect(self.db_file)) as cnn:
+            cursor = cnn.cursor()
+            cursor.execute(f'SELECT * FROM files ORDER BY {column_name} ASC')
+            files_db = cursor.fetchall()
+            print(files_db)
+
+        return files_db
 
     def get_file_db(self, file_path):
 
-        cur.execute(f'SELECT * FROM files WHERE file_path == "{file_path}"')
-        files_db = cur.fetchall()
-        con.commit()
+        with closing(sqlite3.connect(self.db_file)) as cnn:
+            cursor = cnn.cursor()
+
+            cursor.execute(
+                f'SELECT * FROM files WHERE file_path == "{file_path}"')
+            files_db = cursor.fetchall()
 
         return files_db
 
     def update_file_status_in_db(self, file_path, file_id):
 
-        file_info = self.get_file_info(file_path)
+        file_info = self.get_file_info(file_path, get_md5=False)
 
         file_size = file_info["file_size"]
         file_mtime = file_info["file_mtime"]
         file_ctime = file_info["file_ctime"]
         updated_at = datetime.datetime.now()
 
-        cur.execute(f'UPDATE files SET \
-            file_size = {file_size},  \
-            file_mtime = {file_mtime},  \
-            file_ctime = {file_ctime},  \
-            updated_at = "{updated_at}"  \
-            WHERE id == {file_id}')
+        with closing(sqlite3.connect(self.db_file)) as cnn:
+            cursor = cnn.cursor()
 
-        con.commit()
-        return files_db
+            cursor.execute(f'UPDATE files SET \
+                file_size = {file_size},  \
+                file_mtime = {file_mtime},  \
+                file_ctime = {file_ctime},  \
+                updated_at = "{updated_at}"  \
+                WHERE id == {file_id}')
+            cnn.commit()
 
+        return
 
-if __name__ == '__main__':
+    def save_file_status(self, file_path):
 
-    main = Main()
-
-    find_dir = "/home/jason/side_project/car_repair_web_react"
-
-    log = main.logger()
-    file_list = main.get_file_list(find_dir)
-
-    file_count = 0
-
-    file_amount = len(file_list)
-
-    for file_path in file_list:
-        file_count = file_count + 1
-        print("Progress bar: ", file_count, " / ", file_amount)
+        self.file_count = self.file_count + 1
+        print("Progress bar: ", self.file_count, " / ", self.file_amount)
 
         files_db = main.get_file_db(file_path)
         if len(files_db) > 0:
@@ -177,9 +183,9 @@ if __name__ == '__main__':
             if (file_is_modify):
                 main.update_file_status_in_db(file_path, file_db_id)
 
-            continue
+            return
 
-        file_status = main.get_file_info(file_path)
+        file_status = main.get_file_info(file_path, get_md5=IF_GET_CHECKSUM)
 
         created_at = datetime.datetime.now()
 
@@ -194,16 +200,34 @@ if __name__ == '__main__':
             updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
 
-        cur.execute(insertQuery, (
-            file_path,
-            file_status["md5"],
-            file_status["file_size"],
-            file_status["file_mtime"],
-            file_status["file_ctime"],
-            file_status["file_extension"],
-            created_at,
-            created_at))
+        with closing(sqlite3.connect(self.db_file)) as cnn:
+            cursor = cnn.cursor()
+            cursor.execute(insertQuery, (
+                file_path,
+                file_status["md5"],
+                file_status["file_size"],
+                file_status["file_mtime"],
+                file_status["file_ctime"],
+                file_status["file_extension"],
+                created_at,
+                created_at))
+            cnn.commit()
 
-        con.commit()
 
-    main.sort()
+if __name__ == '__main__':
+
+    find_dir = "/home/jason/side_project/car_repair_web_react"
+
+    main = Main()
+    main.init_db()
+
+    log = main.logger()
+    file_list = main.get_file_list(find_dir)
+
+    main.file_amount = len(file_list)
+
+    cpu_cores = multiprocessing.cpu_count()
+
+    pool = multiprocessing.Pool(cpu_cores)
+
+    mapped = pool.map(main.save_file_status, file_list)
