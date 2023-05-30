@@ -15,16 +15,16 @@ from contextlib import closing
 import os
 import multiprocessing
 
-IF_GET_CHECKSUM = True
+IF_GET_CHECKSUM = False
+IF_SAVE_CHECKSUM = True
 OS_TYPE = "windows"  # synology, windows
 IS_CLEAR_FILE_TABLE = False
-
 
 class Main:
 
     db_file = "file_info.db"
-    file_count = 0
     file_amount = 0
+    file_count = 0
 
     def init_db(self):
 
@@ -37,7 +37,8 @@ class Main:
             cursor.execute("CREATE TABLE IF NOT EXISTS files(\
                 id INTEGER PRIMARY KEY AUTOINCREMENT, \
                 file_path TEXT, \
-                md5, file_size TEXT, \
+                md5 TEXT, \
+                file_size FLOAT, \
                 file_mtime FLOAT, \
                 file_ctime FLOAT, \
                 file_extension TEXT, \
@@ -74,7 +75,6 @@ class Main:
         return True
 
     def get_md5(self, filename):
-
         m = hashlib.md5()
         mfile = open(filename, "rb")
         m.update(mfile.read())
@@ -82,20 +82,27 @@ class Main:
         md5_value = m.hexdigest()
         return md5_value
 
-    def check_file_modification(self, file_path, file_size, file_mtime):
-        _file_size = os.path.getsize(file_path)
-        _file_mtime = os.path.getmtime(file_path)
+    def check_file_modification(self, file_path, file_size, file_mtime, file_ctime, md5=None):
 
-        if (file_size == _file_size and file_mtime == _file_mtime):
-            return True
+        if IF_GET_CHECKSUM:
+            _md5 = self.get_md5(file_path)
 
-        return False
+            if (md5 == _md5):
+                return True
+        else:
+            _file_size = os.path.getsize(file_path)
+            _file_mtime = os.path.getmtime(file_path)
+            _file_ctime = os.path.getctime(file_path)
+
+            if (file_size == _file_size and file_mtime == _file_mtime and file_ctime == _file_ctime):
+                return False
+
+        return True
 
     def get_file_info(self, file_path, get_md5=False):
         md5 = None
         if get_md5:
             md5 = self.get_md5(file_path)
-            print(md5)
         file_size = os.path.getsize(file_path)
         file_mtime = os.path.getmtime(file_path)
         file_ctime = os.path.getctime(file_path)
@@ -128,7 +135,6 @@ class Main:
             cursor = cnn.cursor()
             cursor.execute(f'SELECT * FROM files ORDER BY {column_name} ASC')
             files_db = cursor.fetchall()
-            print(files_db)
 
         return files_db
 
@@ -144,18 +150,21 @@ class Main:
         return files_db
 
     def update_file_status_in_db(self, file_path, file_id):
+        
 
-        file_info = self.get_file_info(file_path, get_md5=False)
+        file_info = self.get_file_info(file_path, get_md5=IF_SAVE_CHECKSUM)
 
         file_size = file_info["file_size"]
         file_mtime = file_info["file_mtime"]
         file_ctime = file_info["file_ctime"]
+        md5 = file_info["md5"]
         updated_at = datetime.datetime.now()
 
         with closing(sqlite3.connect(self.db_file)) as cnn:
             cursor = cnn.cursor()
-
+            
             cursor.execute(f'UPDATE files SET \
+                md5 = {md5}, \
                 file_size = {file_size},  \
                 file_mtime = {file_mtime},  \
                 file_ctime = {file_ctime},  \
@@ -166,32 +175,34 @@ class Main:
         return
 
     def save_file_status(self, file_path):
-
-        self.file_count = self.file_count + 1
-        print("Progress bar: ", self.file_count, " / ", self.file_amount)
+        
 
         files_db = main.get_file_db(file_path)
         if len(files_db) > 0:
             file_size = files_db[0][3]
             file_mtime = files_db[0][4]
-            file_db_id = files_db[0][0]
+            file_ctime = files_db[0][5]
+            file_db_id = files_db[0][0]     
+            md5 = files_db[0][2]
 
             file_is_modify = main.check_file_modification(file_path,
                                                           file_size,
-                                                          file_mtime)
+                                                          file_mtime,
+                                                          file_ctime,
+                                                          md5)
 
             if (file_is_modify):
                 main.update_file_status_in_db(file_path, file_db_id)
 
             return
 
-        file_status = main.get_file_info(file_path, get_md5=IF_GET_CHECKSUM)
+        file_status = main.get_file_info(file_path, get_md5=IF_SAVE_CHECKSUM)
 
         created_at = datetime.datetime.now()
-
+        
         insertQuery = """INSERT INTO files (
             file_path,
-            md5, 
+            md5,
             file_size,
             file_mtime,
             file_ctime,
@@ -219,6 +230,7 @@ if __name__ == '__main__':
     find_dir = "/home/jason/side_project/car_repair_web_react"
 
     main = Main()
+
     main.init_db()
 
     log = main.logger()
@@ -230,4 +242,14 @@ if __name__ == '__main__':
 
     pool = multiprocessing.Pool(cpu_cores)
 
-    mapped = pool.map(main.save_file_status, file_list)
+    result_list = []
+    def log_result(result):
+        main.file_count = main.file_count + 1
+        print("Progress bar: ", main.file_count, " / ", main.file_amount)
+        result_list.append(result)
+
+    for file_path in file_list:
+        pool.apply_async(main.save_file_status, (file_path,), callback = log_result)
+
+    pool.close()
+    pool.join()
