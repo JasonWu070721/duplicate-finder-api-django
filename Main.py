@@ -23,6 +23,7 @@ IS_CLEAR_FILE_TABLE = False
 class Main:
 
     db_file = "file_info.db"
+    log_file = "duplicate_file_finder.log"
     file_amount = 0
     file_count = 0
 
@@ -56,7 +57,7 @@ class Main:
             formatter = logging.Formatter(
                 '%(asctime)s %(levelname)-8s: %(message)s')
 
-            file_handler = logging.FileHandler("test.log")
+            file_handler = logging.FileHandler(self.log_file)
             file_handler.setFormatter(formatter)
 
             console_handler = logging.StreamHandler(sys.stdout)
