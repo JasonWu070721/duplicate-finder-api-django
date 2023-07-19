@@ -1,2 +1,9 @@
 file_info.db*
 duplicate_file_finder.log
+__pycache__/
+__pycache__/
+.vscode/
+.venv/
+
+
+*.pyc
