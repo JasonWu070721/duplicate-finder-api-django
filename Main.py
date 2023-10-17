@@ -18,14 +18,14 @@ from pathlib import PurePath
 
 IF_GET_CHECKSUM = False
 IF_SAVE_CHECKSUM = True
-OS_TYPE = "windows"  # synology, windows
+OS_TYPE = "synology"  # synology, windows
 IS_CLEAR_FILE_TABLE = True
 DELETE_REPEAT_FILE = False
 
 
 class Main:
 
-    db_file = "file_info.db"
+    db_file = "db/file_info.db"
     log_file = "duplicate_file_finder.log"
     file_amount = 0
     file_count = 0
@@ -113,6 +113,8 @@ class Main:
         _, file_extension = os.path.splitext(file_path)
         file_extension = file_extension.lower()
 
+        print("file_path: ", file_path)
+
         file_status = {'file_path': file_path, 'file_md5': file_md5, 'file_size': file_size,
                        'file_mtime': file_mtime, 'file_ctime': file_ctime, 'file_extension': file_extension}
 
@@ -122,7 +124,7 @@ class Main:
 
         file_list = []
 
-        for root, dirs, files in walk(os.path.normpath(root_path)):
+        for root, _, files in walk(os.path.normpath(root_path)):
             if OS_TYPE == "synology" and '@eaDir' in root:
                 continue
 
@@ -201,7 +203,11 @@ class Main:
 
             return
 
-        file_status = self.get_file_info(file_path, get_md5=IF_SAVE_CHECKSUM)
+        try:
+            file_status = self.get_file_info(
+                file_path, get_md5=IF_SAVE_CHECKSUM)
+        except Exception as e:
+            print("Error, get file info: ", e)
 
         created_at = datetime.datetime.now()
 
@@ -299,9 +305,7 @@ class Main:
     def selete_fils(self, file_list, reserve_path):
 
         reserve_path = os.path.normpath(reserve_path)
-
         same_file_record = []
-
         find_reserve_path = False
 
         for file_status in file_list:
@@ -328,27 +332,13 @@ class Main:
                     same_file_record = []
                     same_file_record.append(file_status)
 
-            # if(before_file_status != None and before_file_status[0] != find_id):
-            # same_file_count = same_file_count + 1
-            # print(same_file_count)
-            # check_path = PurePath(file_path)
-
-            # if(check_path.is_relative_to(reserve_path)):
-            #     print(file_path)
-            # else:
-            # same_file_count = 1
-            #     same_file_record = []
-            # else:
-            #     print(same_file_record)
-
-            # before_file_status[0] = file_status
-
         return
 
 
 if __name__ == '__main__':
 
-    find_dir = 'C:/github/test'
+    find_dir = './handleFile'
+    reserve_path = "./handleFile/apis"
 
     main = Main()
 
@@ -380,5 +370,4 @@ if __name__ == '__main__':
     file_md5_list = main.order_file_table("file_md5")
     md5_group = main.get_same_file_group()
 
-    reserve_path = "C:/github/test/apis"
     main.selete_fils(md5_group, reserve_path)
