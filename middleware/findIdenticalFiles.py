@@ -25,8 +25,8 @@ DELETE_REPEAT_FILE = False
 
 class Main:
 
-    db_file = "db/file_info.db"
-    log_file = "duplicate_file_finder.log"
+    db_file = "../db/file_info.db"
+    log_file = "../findIdenticalFiles.log"
     file_amount = 0
     file_count = 0
 

@@ -1,6 +1,6 @@
 db/file_info.db
 db.sqlite3
-duplicate_file_finder.log
+findIdenticalFiles.log
 __pycache__/
 .vscode/
 .venv/
