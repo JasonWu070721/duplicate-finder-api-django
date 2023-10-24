@@ -4,4 +4,4 @@ WORKDIR /app
 
 COPY . /app
 
-CMD [ "python", "Main.py" ]
+CMD [ "python", "middleware/findIdenticalFiles.py" ]

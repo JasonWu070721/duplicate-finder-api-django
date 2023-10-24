@@ -1,0 +1,22 @@
+image: docker
+
+services:
+  - docker:dind
+
+variables:
+  CI_IMAGE: $CI_REGISTRY_IMAGE:latest
+  GITLAB_REGISTRY_USERNAME: jasonwu
+
+build:
+  stage: build
+
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /build-image/
+      - $CI_COMMIT_TAG =~ /build-image/
+
+  before_script:
+    - docker login $CI_REGISTRY -u $GITLAB_REGISTRY_USERNAME -p $GITLAB_REGISTRY_PASSWORD
+  script:
+    - docker build -t $CI_IMAGE .
+    - docker push $CI_IMAGE
