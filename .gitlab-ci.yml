@@ -14,7 +14,7 @@ build-push-image:
     GITLAB_REGISTRY_USERNAME: jasonwu
 
   before_script:
-    - docker login $CI_REGISTRY -u $GITLAB_REGISTRY_USERNAME -p $GITLAB_REGISTRY_PASSWORD
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - docker build -t $CI_IMAGE .
     - docker push $CI_IMAGE
