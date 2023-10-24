@@ -22,11 +22,14 @@ OS_TYPE = "synology"  # synology, windows
 IS_CLEAR_FILE_TABLE = True
 DELETE_REPEAT_FILE = False
 
+find_dir = os.environ['FIND_DIR']
+reserve_path = os.environ['RESERVE_PATH']
+
 
 class Main:
 
-    db_file = "../db/file_info.db"
-    log_file = "../findIdenticalFiles.log"
+    db_file = "db/file_info.db"
+    log_file = "findIdenticalFiles.log"
     file_amount = 0
     file_count = 0
 
@@ -80,13 +83,18 @@ class Main:
 
     def get_md5(self, filename):
         m = hashlib.md5()
+        md5_value = None
         mfile = open(filename, "rb")
-        m.update(mfile.read())
-        mfile.close()
-        md5_value = m.hexdigest()
+        if mfile.readable():
+            m.update(mfile.read())
+            mfile.close()
+            md5_value = m.hexdigest()
         return md5_value
 
     def check_file_modification(self, file_path, file_size, file_mtime, file_ctime, file_md5=None):
+
+        if not os.path.isfile(file_path):
+            return False
 
         if IF_GET_CHECKSUM:
             _md5 = self.get_md5(file_path)
@@ -105,18 +113,19 @@ class Main:
 
     def get_file_info(self, file_path, get_md5=False):
         file_md5 = None
-        if get_md5:
-            file_md5 = self.get_md5(file_path)
-        file_size = os.path.getsize(file_path)
-        file_mtime = os.path.getmtime(file_path)
-        file_ctime = os.path.getctime(file_path)
-        _, file_extension = os.path.splitext(file_path)
-        file_extension = file_extension.lower()
+        file_status = None
+        isFile = os.path.isfile(file_path)
+        if isFile:
+            if get_md5:
+                file_md5 = self.get_md5(file_path)
+            file_size = os.path.getsize(file_path)
+            file_mtime = os.path.getmtime(file_path)
+            file_ctime = os.path.getctime(file_path)
+            _, file_extension = os.path.splitext(file_path)
+            file_extension = file_extension.lower()
 
-        print("file_path: ", file_path)
-
-        file_status = {'file_path': file_path, 'file_md5': file_md5, 'file_size': file_size,
-                       'file_mtime': file_mtime, 'file_ctime': file_ctime, 'file_extension': file_extension}
+            file_status = {'file_path': file_path, 'file_md5': file_md5, 'file_size': file_size,
+                           'file_mtime': file_mtime, 'file_ctime': file_ctime, 'file_extension': file_extension}
 
         return file_status
 
@@ -159,26 +168,26 @@ class Main:
     def update_file_status_in_db(self, file_path, file_id):
 
         file_info = self.get_file_info(file_path, get_md5=IF_SAVE_CHECKSUM)
+        if file_info:
+            file_size = file_info["file_size"]
+            file_mtime = file_info["file_mtime"]
+            file_ctime = file_info["file_ctime"]
+            file_md5 = file_info["file_md5"]
+            updated_at = datetime.datetime.now()
 
-        file_size = file_info["file_size"]
-        file_mtime = file_info["file_mtime"]
-        file_ctime = file_info["file_ctime"]
-        file_md5 = file_info["file_md5"]
-        updated_at = datetime.datetime.now()
+            with closing(sqlite3.connect(self.db_file)) as cnn:
+                cursor = cnn.cursor()
 
-        with closing(sqlite3.connect(self.db_file)) as cnn:
-            cursor = cnn.cursor()
-
-            cursor.execute(f"""
-                UPDATE files SET \
-                file_md5 = {file_md5}, \
-                file_size = {file_size},  \
-                file_mtime = {file_mtime},  \
-                file_ctime = {file_ctime},  \
-                updated_at = "{updated_at}"  \
-                WHERE id == {file_id}
-            """)
-            cnn.commit()
+                cursor.execute(f"""
+                    UPDATE files SET \
+                    file_md5 = {file_md5}, \
+                    file_size = {file_size},  \
+                    file_mtime = {file_mtime},  \
+                    file_ctime = {file_ctime},  \
+                    updated_at = "{updated_at}"  \
+                    WHERE id == {file_id}
+                """)
+                cnn.commit()
 
         return
 
@@ -279,34 +288,35 @@ class Main:
 
         return db_return
 
-    def delete_other_reserve_path_file(self, same_file_record, reserve_path):
-        repeat_file_count = 0
-        print(same_file_record)
-        for file_status in same_file_record:
-            file_path = file_status[2]
-            file_group_id = file_status[0]
+    def delete_other_reserve_path_file(self, same_file_record_list, reserve_path):
+        for same_file_record in same_file_record_list:
+            repeat_file_count = 0
+            for file_status in same_file_record:
+                file_path = file_status[2]
+                file_group_id = file_status[0]
 
-            check_path = PurePath(file_path)
-            if (check_path.is_relative_to(reserve_path)):
-                repeat_file_count += 1
+                check_path = PurePath(file_path)
+                if (check_path.is_relative_to(reserve_path)):
+                    repeat_file_count += 1
 
-                if DELETE_REPEAT_FILE:
-                    if repeat_file_count > 1:
-                        print(file_group_id, "delete file(repeat):", file_path)
-                        # os.remove(file_path)
+                    if DELETE_REPEAT_FILE:
+                        if repeat_file_count > 1:
+                            print(file_group_id, "delete file(repeat):", file_path)
+                            # os.remove(file_path)
+                        else:
+                            print(file_group_id, "keep file:", file_path)
                     else:
                         print(file_group_id, "keep file:", file_path)
                 else:
-                    print(file_group_id, "keep file:", file_path)
-            else:
-                print(file_group_id, "delete file:", file_path)
-                # os.remove(file_path)
+                    print(file_group_id, "delete file:", file_path)
+                    # os.remove(file_path)
 
     def selete_fils(self, file_list, reserve_path):
 
         reserve_path = os.path.normpath(reserve_path)
         same_file_record = []
         find_reserve_path = False
+        same_file_group_list = []
 
         for file_status in file_list:
 
@@ -326,19 +336,20 @@ class Main:
                 else:
                     if find_reserve_path:
                         same_file_record.pop()
-                        self.delete_other_reserve_path_file(
-                            same_file_record, reserve_path)
+                        same_file_group_list.append(same_file_record)
+
                         find_reserve_path = False
                     same_file_record = []
                     same_file_record.append(file_status)
 
-        return
+        return same_file_group_list
 
 
 if __name__ == '__main__':
 
-    find_dir = './handleFile'
-    reserve_path = "./handleFile/apis"
+    if not os.path.exists(find_dir) and not os.path.exists(reserve_path):
+        print("Error, path not found")
+        exit()
 
     main = Main()
 
@@ -370,4 +381,9 @@ if __name__ == '__main__':
     file_md5_list = main.order_file_table("file_md5")
     md5_group = main.get_same_file_group()
 
-    main.selete_fils(md5_group, reserve_path)
+    same_file_group_list = main.selete_fils(md5_group, reserve_path)
+
+    main.delete_other_reserve_path_file(
+        same_file_group_list, reserve_path)
+
+    exit()
