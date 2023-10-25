@@ -8,7 +8,7 @@ build-push-image-gitlab:
   services:
     - docker:dind
 
-  stage: push
+  stage: push-gitlab
 
   variables:
     CI_IMAGE: $CI_REGISTRY_IMAGE:latest
