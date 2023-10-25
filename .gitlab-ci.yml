@@ -1,7 +1,8 @@
 stages:
-  - push
+  - push-gitlab
+  - push-docker
 
-build-push-image:
+build-push-image-gitlab:
   image: docker
 
   services:
@@ -11,10 +12,26 @@ build-push-image:
 
   variables:
     CI_IMAGE: $CI_REGISTRY_IMAGE:latest
-    GITLAB_REGISTRY_USERNAME: jasonwu
 
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_IMAGE .
+    - docker push $CI_IMAGE
+
+build-push-image-docker:
+  image: docker
+
+  services:
+    - docker:dind
+
+  stage: push-docker
+
+  variables:
+    CI_IMAGE: jasonwu070721/duplicate_finder_api_django:latest
+
+  before_script:
+    - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
   script:
     - docker build -t $CI_IMAGE .
     - docker push $CI_IMAGE
