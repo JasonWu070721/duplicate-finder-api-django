@@ -4,13 +4,14 @@ from django.db import models
 
 
 class File(models.Model):
-    file_name = models.CharField(max_length=255, null=True)
-    file_size = models.IntegerField(null=True)
-    file_mtime = models.DateTimeField(null=True)
-    file_ctime = models.DateTimeField(null=True)
-    file_extension = models.CharField(max_length=255, null=True)
-    file_md5 = models.CharField(max_length=255, null=True)
-    file_path = models.CharField(max_length=255, null=True)
+
+    file_name = models.CharField(max_length=255, blank=True)
+    file_size = models.IntegerField(blank=False)
+    file_mtime = models.FloatField(blank=False)
+    file_ctime = models.FloatField(blank=False)
+    file_extension = models.CharField(max_length=255, blank=True)
+    file_md5 = models.CharField(max_length=255, blank=True)
+    file_path = models.CharField(max_length=255, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

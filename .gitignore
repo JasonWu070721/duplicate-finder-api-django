@@ -1,9 +1,7 @@
-db/file_info.db
-db.sqlite3
-findIdenticalFiles.log
 __pycache__/
 .vscode/
 .venv/
-
-
+db/db.sqlite3
+.env
 *.pyc
+findIdenticalFiles.log

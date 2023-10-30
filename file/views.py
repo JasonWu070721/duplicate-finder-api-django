@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework import viewsets, status
-from file.tasks import file_init
+from file.tasks import file_init_task, search_identical_file_task, select_file_task
 from celery.result import AsyncResult
 
 
@@ -24,39 +24,52 @@ class FileViewSet(viewsets.ModelViewSet):
 
         return super().get_permissions()
 
-    @action(detail=False, methods=['GET'], url_path=r'search-status')
-    def search_status(self, request, pk=None, **kwargs):
+    @action(detail=False, methods=['GET'], url_path=r'init-status')
+    def init_status(self, request, pk=None, **kwargs):
         task_id = None
         task_state = None
         task_result = None
-        task_ready = None
+        task_info = None
 
         if 'task_id' in request.data:
-
             task_id = request.data['task_id']
             task_result = AsyncResult(task_id)
-
-            task_ready = task_result.ready()
-
             task_state = task_result.state
-            task_result = task_result.result
+            task_info = task_result.info
 
         return Response({
             'task_id': task_id,
             'task_state': task_state,
-            'task_result': task_result,
-            'task_ready': task_ready
+            'task_info':  task_info
         })
 
-    @action(detail=False, url_path=r'search-file')
-    def search_file(self, request, pk=None):
-        file_path = None
-        count = None
-        if 'file_path' in request.data:
-            file_path = request.data['file_path']
-            count = file_init.delay(file_path)
-            print(count)
-        return Response({'status': 'start', 'task_id': f'{count}'})
+    @ action(detail=False, url_path=r'init')
+    def init_file(self, request, pk=None):
+        task_id = None
+
+        if 'root_path' in request.data:
+            root_path = request.data['root_path']
+            task_id = file_init_task.delay(root_path)
+
+        return Response({'task_id': f'{task_id}'})
+
+    @ action(detail=False, url_path=r'search')
+    def search_identical_file(self, request, pk=None):
+
+        task_id = None
+        task_id = search_identical_file_task.delay()
+        return Response({'task_id': f'{task_id}'})
+
+    @ action(detail=False, url_path=r'select')
+    def select_file(self, request, pk=None):
+
+        task_id = None
+        reserve_path = None
+        if 'reserve_path' in request.data:
+            reserve_path = request.data['reserve_path']
+            task_id = select_file_task.delay(reserve_path)
+
+        return Response({'task_id': f'{task_id}'})
 
     def list(self, request):
 
@@ -75,7 +88,6 @@ class FileViewSet(viewsets.ModelViewSet):
     def create(self, request, **kwargs):
         try:
             request_data = request.data
-            print(request_data)
             serializer = self.get_serializer(data=request_data)
             serializer.is_valid(raise_exception=True)
 

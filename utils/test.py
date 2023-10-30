@@ -23,7 +23,7 @@ IS_CLEAR_FILE_TABLE = True
 DELETE_REPEAT_FILE = False
 
 find_dir = "/app/data"
-reserve_path = find_dir + "/" + os.environ['RESERVE_PATH']
+# reserve_path = find_dir + "/" + os.environ['RESERVE_PATH']
 
 
 class Main:
