@@ -16,7 +16,7 @@ build-push-image-gitlab:
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
-    - docker build -t $CI_IMAGE .
+    - docker build -t $CI_IMAGE -f docker/django/Dockerfile .
     - docker push $CI_IMAGE
 
 build-push-image-docker:
@@ -34,5 +34,5 @@ build-push-image-docker:
   before_script:
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD $IMAGE_REGISTRY
   script:
-    - docker build -t $CI_IMAGE .
+    - docker build -t $CI_IMAGE -f docker/django/Dockerfile .
     - docker push $CI_IMAGE
