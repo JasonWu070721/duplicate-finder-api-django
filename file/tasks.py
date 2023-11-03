@@ -38,10 +38,13 @@ def search_identical_file_task(self):
 
 @app.task(bind=True)
 def select_file_task(self, reserve_path):
-
-    reserve_path = str(reserve_path).strip()
-    reserve_path = os.path.normpath(
-        os.path.join("/app/data", reserve_path))
+    
+    if reserve_path:
+        reserve_path = reserve_path.replace("\\", "/")
+        reserve_path = str(reserve_path).strip()
+        reserve_path = os.path.normpath(reserve_path)
+        
+        reserve_path = os.path.join("/app/data", reserve_path)
 
     fileInit = FileInit()
 

@@ -347,6 +347,8 @@ class Main:
 
 if __name__ == '__main__':
 
+    reserve_path = None
+
     if not os.path.exists(find_dir) and not os.path.exists(reserve_path):
         print("Error, path not found")
         exit()
