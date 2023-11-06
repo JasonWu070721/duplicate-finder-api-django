@@ -18,8 +18,8 @@ build-push-image-gitlab:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - docker build -t $CI_DJANGO_IMAGE -f docker/django/Dockerfile .
-    - docker build -t $CI_CELERY_IMAGE -f docker/celery/Dockerfile .
     - docker push $CI_DJANGO_IMAGE
+    - docker build -t $CI_CELERY_IMAGE -f docker/celery/Dockerfile .
     - docker push $CI_CELERY_IMAGE
 
 build-push-image-docker:
@@ -39,6 +39,6 @@ build-push-image-docker:
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD $IMAGE_REGISTRY
   script:
     - docker build -t $CI_DJANGO_IMAGE -f docker/django/Dockerfile .
-    - docker build -t $CI_CELERY_IMAGE -f docker/celery/Dockerfile .
     - docker push $CI_DJANGO_IMAGE
+    - docker build -t $CI_CELERY_IMAGE -f docker/celery/Dockerfile .
     - docker push $CI_CELERY_IMAGE
