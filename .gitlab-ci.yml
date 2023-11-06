@@ -11,16 +11,16 @@ build-push-image-gitlab:
   stage: push-gitlab
 
   variables:
-    CI_DJANGO_IMAGE: duplicate-finder-api-django:latest
-    # CI_CELERY_IMAGE: duplicate-finder-api-celery:latest
+    CI_DJANGO_IMAGE: $CI_REGISTRY_IMAGE/duplicate-finder-api-django:latest
+    CI_CELERY_IMAGE: $CI_REGISTRY_IMAGE/duplicate-finder-api-celery:latest
 
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - docker build -t $CI_DJANGO_IMAGE -f docker/django/Dockerfile .
     - docker push $CI_DJANGO_IMAGE
-    # - docker build -t $CI_CELERY_IMAGE -f docker/celery/Dockerfile .
-    # - docker push $CI_CELERY_IMAGE
+    - docker build -t $CI_CELERY_IMAGE -f docker/celery/Dockerfile .
+    - docker push $CI_CELERY_IMAGE
 
 build-push-image-docker:
   image: docker
@@ -32,7 +32,7 @@ build-push-image-docker:
 
   variables:
     CI_DJANGO_IMAGE: jasonwu070721/duplicate-finder-api-django:latest
-    # CI_CELERY_IMAGE: jasonwu070721/duplicate-finder-api-celery:latest
+    CI_CELERY_IMAGE: jasonwu070721/duplicate-finder-api-celery:latest
     IMAGE_REGISTRY: docker.io
 
   before_script:
@@ -40,5 +40,5 @@ build-push-image-docker:
   script:
     - docker build -t $CI_DJANGO_IMAGE -f docker/django/Dockerfile .
     - docker push $CI_DJANGO_IMAGE
-    # - docker build -t $CI_CELERY_IMAGE -f docker/celery/Dockerfile .
-    # - docker push $CI_CELERY_IMAGE
+    - docker build -t $CI_CELERY_IMAGE -f docker/celery/Dockerfile .
+    - docker push $CI_CELERY_IMAGE
