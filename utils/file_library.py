@@ -12,7 +12,6 @@ from pathlib import PurePath
 from file.models import File
 from file.serializers import FileSerializer
 
-IF_GET_CHECKSUM = False
 IF_SAVE_CHECKSUM = True
 OS_TYPE = "synology"  # synology, windows
 IS_CLEAR_FILE_TABLE = True
@@ -64,7 +63,7 @@ class FileInit:
         if not os.path.isfile(file_path):
             return False
 
-        if IF_GET_CHECKSUM:
+        if IF_SAVE_CHECKSUM:
             _md5 = self.get_md5(file_path)
 
             if file_md5 == _md5:
@@ -96,15 +95,15 @@ class FileInit:
         """
 
         files_db = self.get_file_db(file_path)
-        file_is_modified = True
 
         if len(files_db) > 0:
+            file_md5 = None
             files_db = files_db[0]
             file_size = files_db["file_size"]
             file_mtime = files_db["file_mtime"]
             file_ctime = files_db["file_ctime"]
-            # file_id = files_db["id"]
-            file_md5 = files_db["file_md5"]
+            if IF_SAVE_CHECKSUM:
+                file_md5 = files_db["file_md5"]
 
             file_is_same = self.check_file_statuses_same(
                 file_path, file_size, file_mtime, file_ctime, file_md5
@@ -231,10 +230,12 @@ class FileInit:
     def update_file_status_in_db(self, file_path, file_id):
         file_info = self.get_file_info(file_path, get_md5=IF_SAVE_CHECKSUM)
         if file_info:
+            file_md5 = None
             file_size = file_info["file_size"]
             file_mtime = file_info["file_mtime"]
             file_ctime = file_info["file_ctime"]
-            file_md5 = file_info["file_md5"]
+            if IF_SAVE_CHECKSUM:
+                file_md5 = file_info["file_md5"]
             try:
                 File.objects.filter(id=file_id).update(
                     file_size=file_size,
@@ -251,9 +252,9 @@ class FileInit:
         file_status = None
         modification_status, files_db = self.check_file_modified(file_path)
 
-        if modification_status is "same":
+        if modification_status == "same":
             return
-        elif modification_status is "not_fined":
+        elif modification_status == "not_fined":
             try:
                 file_status = self.get_file_info(file_path, get_md5=IF_SAVE_CHECKSUM)
             except Exception as e:

@@ -29,18 +29,17 @@ def file_init_task(self, root_path):
         for file in files:
             path = os.path.join(root, file)
             path = os.path.normpath(path)
+            fileInit.save_file_status(path)
 
             fileInit.file_count = fileInit.file_count + 1
-            fileInit.save_file_status(path)
 
             self.update_state(
                 state="PROGRESS",
-                meta={"current": fileInit.file_count, "total": fileInit.file_total},
+                meta={"current": fileInit.file_count},
             )
 
     return {
         "current": fileInit.file_count,
-        "total": fileInit.file_total,
         "root_path": root_path,
     }
 
