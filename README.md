@@ -26,5 +26,5 @@ docker-compose up
 - [x] Support GORM
 - [x] Support GitLab CI
 - [ ] Support CD
-- [ ] JWT
-- [ ] User login
+- [ ] Support Google, Line, Facebook OAuth
+- [ ] Support multi-select file
