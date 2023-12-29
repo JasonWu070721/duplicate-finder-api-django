@@ -57,16 +57,26 @@ class FileInit:
             md5_value = m.hexdigest()
         return md5_value
 
+    def get_blake2(self, filename):
+        m = hashlib.blake2b()
+        blake2_value = None
+        mfile = open(filename, "rb")
+        if mfile.readable():
+            m.update(mfile.read())
+            mfile.close()
+            blake2_value = m.hexdigest()
+        return blake2_value
+
     def check_file_statuses_same(
-        self, file_path, file_size, file_mtime, file_ctime, file_md5=None
+        self, file_path, file_size, file_mtime, file_ctime, file_blake2=None
     ):
         if not os.path.isfile(file_path):
             return False
 
         if IF_SAVE_CHECKSUM:
-            _md5 = self.get_md5(file_path)
+            _blake2 = self.get_blake2(file_path)
 
-            if file_md5 == _md5:
+            if file_blake2 == _blake2:
                 return True
         else:
             _file_size = os.path.getsize(file_path)
@@ -96,17 +106,17 @@ class FileInit:
 
         files_db = self.get_file_db(file_path)
 
-        if len(files_db) > 0:
-            file_md5 = None
+        if files_db and len(files_db) > 0:
+            file_blake2 = None
             files_db = files_db[0]
-            file_size = files_db["file_size"]
-            file_mtime = files_db["file_mtime"]
-            file_ctime = files_db["file_ctime"]
+            file_size = files_db["size"]
+            file_mtime = files_db["mtime"]
+            file_ctime = files_db["ctime"]
             if IF_SAVE_CHECKSUM:
-                file_md5 = files_db["file_md5"]
+                file_blake2 = files_db["hash_md5"]
 
             file_is_same = self.check_file_statuses_same(
-                file_path, file_size, file_mtime, file_ctime, file_md5
+                file_path, file_size, file_mtime, file_ctime, file_blake2
             )
 
             if file_is_same:
@@ -132,13 +142,13 @@ class FileInit:
             file_extension = file_extension.lower()
 
             file_status = {
-                "file_name": file_name,
-                "file_path": file_path,
-                "file_md5": file_md5,
-                "file_size": file_size,
-                "file_mtime": file_mtime,
-                "file_ctime": file_ctime,
-                "file_extension": file_extension,
+                "name": file_name,
+                "full_path": file_path,
+                "hash_md5": file_md5,
+                "size": file_size,
+                "mtime": file_mtime,
+                "ctime": file_ctime,
+                "extension": file_extension,
             }
 
         return file_status
@@ -216,14 +226,15 @@ class FileInit:
     def get_file_db(self, file_path):
         db_return = None
 
-        try:
-            queryset = File.objects.filter(file_path=file_path)
-            serializer = FileSerializer(queryset, many=True)
-            db_return = serializer.data
-            return db_return
+        if file_path:
+            try:
+                queryset = File.objects.filter(file_path=file_path)
+                serializer = FileSerializer(queryset, many=True)
+                db_return = serializer.data
+                return db_return
 
-        except Exception:
-            pass
+            except Exception:
+                pass
 
         return db_return
 
@@ -231,17 +242,17 @@ class FileInit:
         file_info = self.get_file_info(file_path, get_md5=IF_SAVE_CHECKSUM)
         if file_info:
             file_md5 = None
-            file_size = file_info["file_size"]
-            file_mtime = file_info["file_mtime"]
-            file_ctime = file_info["file_ctime"]
+            file_size = file_info["size"]
+            file_mtime = file_info["mtime"]
+            file_ctime = file_info["ctime"]
             if IF_SAVE_CHECKSUM:
-                file_md5 = file_info["file_md5"]
+                file_md5 = file_info["hash_md5"]
             try:
                 File.objects.filter(id=file_id).update(
-                    file_size=file_size,
-                    file_mtime=file_mtime,
-                    file_ctime=file_ctime,
-                    file_md5=file_md5,
+                    size=file_size,
+                    mtime=file_mtime,
+                    ctime=file_ctime,
+                    hash_md5=file_md5,
                 )
             except Exception as e:
                 print("update file is fault, error:", e)
@@ -267,27 +278,27 @@ class FileInit:
             if is_valid:
                 db_return = serializer.validated_data
 
-                file_name = db_return["file_name"]
-                file_size = db_return["file_size"]
-                file_mtime = db_return["file_mtime"]
-                file_ctime = db_return["file_ctime"]
-                file_md5 = db_return["file_md5"]
-                file_extension = db_return["file_extension"]
+                file_name = db_return["name"]
+                file_size = db_return["size"]
+                file_mtime = db_return["mtime"]
+                file_ctime = db_return["ctime"]
+                file_md5 = db_return["hash_md5"]
+                file_extension = db_return["extension"]
 
                 try:
                     file_object = File(
-                        file_name=file_name,
-                        file_size=file_size,
-                        file_mtime=file_mtime,
-                        file_ctime=file_ctime,
-                        file_md5=file_md5,
-                        file_path=file_path,
-                        file_extension=file_extension,
+                        name=file_name,
+                        size=file_size,
+                        mtime=file_mtime,
+                        ctime=file_ctime,
+                        hash_md5=file_md5,
+                        full_path=file_path,
+                        extension=file_extension,
                     )
                     file_object.save()
                 except Exception as e:
                     print("create file is fault, error:", e)
-        elif modification_status is "fined":
+        elif modification_status == "fined":
             self.update_file_status_in_db(file_path, files_db["id"])
 
         return
@@ -298,26 +309,26 @@ class FileInit:
             WITH GroupedData AS (
                 SELECT
                     id,
-                    file_path,
-                    file_md5,
-                    file_size,
-                    file_mtime,
-                    file_ctime,
-                    file_extension,
+                    full_path,
+                    hash_md5,
+                    size,
+                    mtime,
+                    ctime,
+                    extension,
                     created_at,
                     updated_at,
-                    DENSE_RANK() OVER (ORDER BY file_md5) AS group_id
+                    DENSE_RANK() OVER (ORDER BY hash_md5) AS group_id
                 FROM file_file
             )
             SELECT
                 group_id,
                 id,
-                file_path,
-                file_md5,
-                file_size,
-                file_mtime,
-                file_ctime,
-                file_extension,
+                full_path,
+                hash_md5,
+                size,
+                mtime,
+                ctime,
+                extension,
                 created_at,
                 updated_at
             FROM GroupedData

@@ -44,7 +44,7 @@ services:
     env_file:
       - .env
     environment:
-      MYSQL_HOST: localhost
+      MYSQL_HOST: mysql
       MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
