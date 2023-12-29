@@ -332,13 +332,10 @@ class FileInit:
                 created_at,
                 updated_at
             FROM GroupedData
-            ORDER BY group_id;
+            ORDER BY group_id
         """
 
-        with closing(sqlite3.connect(self.db_file)) as cnn:
-            cursor = cnn.cursor()
-            cursor.execute(insertQuery)
-            db_return = cursor.fetchall()
+        db_return = File.objects.raw(insertQuery)
 
         return db_return
 
