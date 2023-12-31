@@ -22,8 +22,8 @@ class FileViewSet(viewsets.ModelViewSet):
 
         return super().get_permissions()
 
-    @action(detail=False, methods=["GET"], url_path=r"init-status")
-    def init_status(self, request, pk=None, **kwargs):
+    @action(detail=False, methods=["GET"], url_path=r"task-result")
+    def task_result(self, request, pk=None, **kwargs):
         task_id = None
         task_state = None
         task_result = None

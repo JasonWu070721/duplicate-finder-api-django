@@ -19,7 +19,6 @@ DELETE_REPEAT_FILE = False
 
 
 class FileInit:
-    db_file = "db/db.sqlite3"
     log_file = "findIdenticalFiles.log"
     file_total = 0
     file_count = 0
@@ -304,7 +303,7 @@ class FileInit:
         return
 
     def get_same_file_group(self):
-        db_return = None
+        db_return = []
         insertQuery = """
             WITH GroupedData AS (
                 SELECT
@@ -335,16 +334,34 @@ class FileInit:
             ORDER BY group_id
         """
 
-        db_return = File.objects.raw(insertQuery)
+        data = File.objects.raw(insertQuery)
 
+        for row in data:
+            db_return.append(
+                {
+                    "group_id": row.group_id,
+                    "id": row.id,
+                    "full_path": row.full_path,
+                    "hash_md5": row.hash_md5,
+                    "size":row.size,
+                    "mtime": row.mtime,
+                    "ctime": row.ctime,
+                    "extension": row.extension,
+                    "created_at": row.created_at,
+                    "updated_at": row.updated_at,
+                }
+            )
         return db_return
+    
+    def delete_all_data(self):
+        File.objects.all().delete()
 
     def delete_other_reserve_path_file(self, same_file_record_list, reserve_path):
         for same_file_record in same_file_record_list:
             repeat_file_count = 0
             for file_status in same_file_record:
-                file_path = file_status[2]
-                file_group_id = file_status[0]
+                file_path = file_status["full_path"]
+                file_group_id = file_status["group_id"]
                 check_path = PurePath(file_path)
 
                 if check_path.is_relative_to(reserve_path):
@@ -372,11 +389,11 @@ class FileInit:
             same_file_record.append(file_status)
 
             if len(same_file_record) > 1:
-                record_group_id_1 = same_file_record[0][0]
-                file_group_id = file_status[0]
+                record_group_id_1 = same_file_record[0]["group_id"]
+                file_group_id = file_status["group_id"]
 
                 if record_group_id_1 == file_group_id:
-                    file_path = file_status[2]
+                    file_path = file_status["full_path"]
                     check_path = PurePath(file_path)
                     if check_path.is_relative_to(reserve_path):
                         find_reserve_path = True

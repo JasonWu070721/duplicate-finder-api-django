@@ -5,7 +5,7 @@ from os import walk
 from file.models import File
 
 OS_TYPE = "synology"  # synology, windows
-
+IS_CLEAN_FILE_TABLE = True
 
 @app.task(bind=True)
 def file_init_task(self, root_path):
@@ -21,6 +21,9 @@ def file_init_task(self, root_path):
         root_path = os.path.join("/app/data", root_path)
     else:
         root_path = "/app/data"
+
+    if IS_CLEAN_FILE_TABLE:
+        fileInit.delete_all_data()
 
     for root, _, files in walk(os.path.normpath(root_path)):
         if OS_TYPE == "synology" and "@eaDir" in root:
