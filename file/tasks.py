@@ -7,6 +7,7 @@ from file.models import File
 OS_TYPE = "synology"  # synology, windows
 IS_CLEAN_FILE_TABLE = True
 
+
 @app.task(bind=True)
 def file_init_task(self, root_path):
     fileInit = FileInit()
@@ -18,9 +19,9 @@ def file_init_task(self, root_path):
         root_path = root_path.replace("\\", "/")
         root_path = os.path.normpath(root_path)
 
-        root_path = os.path.join("/app/data", root_path)
+        root_path = os.path.join("/search_data", root_path)
     else:
-        root_path = "/app/data"
+        root_path = "/search_data"
 
     if IS_CLEAN_FILE_TABLE:
         fileInit.delete_all_data()
@@ -62,9 +63,9 @@ def select_file_task(self, reserve_path=None):
         reserve_path = str(reserve_path).strip()
         reserve_path = os.path.normpath(reserve_path)
 
-        reserve_path = os.path.join("/app/data", reserve_path)
+        reserve_path = os.path.join("/search_data", reserve_path)
     else:
-        reserve_path = "/app/data"
+        reserve_path = "/search_data"
 
     fileInit = FileInit()
 

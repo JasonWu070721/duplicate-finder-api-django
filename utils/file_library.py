@@ -131,8 +131,6 @@ class FileInit:
         isFile = os.path.isfile(file_path)
 
         if isFile:
-            if get_md5:
-                file_md5 = self.get_md5(file_path)
             file_size = os.path.getsize(file_path)
             file_mtime = os.path.getmtime(file_path)
             file_ctime = os.path.getctime(file_path)
@@ -260,45 +258,39 @@ class FileInit:
 
     def save_file_status(self, file_path):
         file_status = None
-        modification_status, files_db = self.check_file_modified(file_path)
 
-        if modification_status == "same":
-            return
-        elif modification_status == "not_fined":
+        try:
+            file_status = self.get_file_info(file_path, get_md5=IF_SAVE_CHECKSUM)
+        except Exception as e:
+            print("get-file-info is fault, error: ", e)
+
+        serializer = FileSerializer(data=file_status)
+
+        is_valid = serializer.is_valid(raise_exception=True)
+
+        if is_valid:
+            db_return = serializer.validated_data
+
+            file_name = db_return["name"]
+            file_size = db_return["size"]
+            file_mtime = db_return["mtime"]
+            file_ctime = db_return["ctime"]
+            file_md5 = db_return["hash_md5"]
+            file_extension = db_return["extension"]
+
             try:
-                file_status = self.get_file_info(file_path, get_md5=IF_SAVE_CHECKSUM)
+                file_object = File(
+                    name=file_name,
+                    size=file_size,
+                    mtime=file_mtime,
+                    ctime=file_ctime,
+                    hash_md5=file_md5,
+                    full_path=file_path,
+                    extension=file_extension,
+                )
+                file_object.save()
             except Exception as e:
-                print("get-file-info is fault, error: ", e)
-
-            serializer = FileSerializer(data=file_status)
-
-            is_valid = serializer.is_valid(raise_exception=True)
-
-            if is_valid:
-                db_return = serializer.validated_data
-
-                file_name = db_return["name"]
-                file_size = db_return["size"]
-                file_mtime = db_return["mtime"]
-                file_ctime = db_return["ctime"]
-                file_md5 = db_return["hash_md5"]
-                file_extension = db_return["extension"]
-
-                try:
-                    file_object = File(
-                        name=file_name,
-                        size=file_size,
-                        mtime=file_mtime,
-                        ctime=file_ctime,
-                        hash_md5=file_md5,
-                        full_path=file_path,
-                        extension=file_extension,
-                    )
-                    file_object.save()
-                except Exception as e:
-                    print("create file is fault, error:", e)
-        elif modification_status == "fined":
-            self.update_file_status_in_db(file_path, files_db["id"])
+                print("create file is fault, error:", e)
 
         return
 
@@ -340,10 +332,10 @@ class FileInit:
             db_return.append(
                 {
                     "group_id": row.group_id,
-                    "id": row.id,
+                    "file_id": row.id,
                     "full_path": row.full_path,
                     "hash_md5": row.hash_md5,
-                    "size":row.size,
+                    "size": row.size,
                     "mtime": row.mtime,
                     "ctime": row.ctime,
                     "extension": row.extension,
@@ -352,7 +344,7 @@ class FileInit:
                 }
             )
         return db_return
-    
+
     def delete_all_data(self):
         File.objects.all().delete()
 
