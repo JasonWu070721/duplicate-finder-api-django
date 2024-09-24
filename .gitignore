@@ -1,6 +1,7 @@
 __pycache__/
 .vscode/
 .venv/
+.conda/
 db/db.sqlite3
 .env
 *.pyc

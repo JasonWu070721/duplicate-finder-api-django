@@ -12,6 +12,9 @@ from pathlib import PurePath
 from file.models import File
 from file.serializers import FileSerializer
 
+from file.models import SearchResult
+from file.serializers import SearchResultSerializer
+
 IF_SAVE_CHECKSUM = True
 OS_TYPE = "synology"  # synology, windows
 IS_CLEAR_FILE_TABLE = True
@@ -308,7 +311,7 @@ class FileInit:
                     extension,
                     created_at,
                     updated_at,
-                    DENSE_RANK() OVER (ORDER BY hash_md5) AS group_id
+                    DENSE_RANK() OVER (ORDER BY size) AS group_id
                 FROM file_file
             )
             SELECT
@@ -329,20 +332,41 @@ class FileInit:
         data = File.objects.raw(insertQuery)
 
         for row in data:
-            db_return.append(
-                {
-                    "group_id": row.group_id,
-                    "file_id": row.id,
-                    "full_path": row.full_path,
-                    "hash_md5": row.hash_md5,
-                    "size": row.size,
-                    "mtime": row.mtime,
-                    "ctime": row.ctime,
-                    "extension": row.extension,
-                    "created_at": row.created_at,
-                    "updated_at": row.updated_at,
-                }
-            )
+            search_result_data = {
+                "group_id": row.group_id,
+                "file_id": row.id,
+                "full_path": row.full_path,
+                "hash_md5": row.hash_md5,
+                "size": row.size,
+                "mtime": row.mtime,
+                "ctime": row.ctime,
+                "extension": row.extension,
+            }
+
+            SearchResult.objects.raw("truncate table file_searchresult")
+
+            serializer = SearchResultSerializer(data=search_result_data)
+            is_valid = serializer.is_valid(raise_exception=True)
+
+            if is_valid:
+
+                try:
+                    search_result_object = SearchResult(
+                        group_id=row.group_id,
+                        file_id=row.id,
+                        full_path=row.full_path,
+                        hash_md5=row.hash_md5,
+                        size=row.size,
+                        mtime=row.mtime,
+                        ctime=row.ctime,
+                        extension=row.extension,
+                    )
+                    search_result_object.save()
+
+                except Exception as e:
+                    print("update file is fault, error:", e)
+
+            db_return.append(search_result_data)
         return db_return
 
     def delete_all_data(self):
