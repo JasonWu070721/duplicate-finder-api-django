@@ -51,9 +51,9 @@ def file_init_task(self, root_path):
 @app.task(bind=True)
 def search_identical_file_task(self):
     fileInit = FileInit()
-    md5_group = fileInit.get_same_file_group()
+    file_group = fileInit.get_same_file_group()
 
-    return {"file_group": md5_group}
+    return {"file_group": file_group}
 
 
 @app.task(bind=True)
@@ -69,7 +69,7 @@ def select_file_task(self, reserve_path=None):
 
     fileInit = FileInit()
 
-    md5_group = fileInit.get_same_file_group()
-    same_file_group_list = fileInit.selete_fils(md5_group, reserve_path)
+    file_group = fileInit.get_same_file_group()
+    same_file_group_list = fileInit.selete_fils(file_group, reserve_path)
 
     fileInit.delete_other_reserve_path_file(same_file_group_list, reserve_path)

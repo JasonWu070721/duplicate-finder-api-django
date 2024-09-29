@@ -5,8 +5,6 @@ import logging
 import sys
 from os import walk
 import json
-import sqlite3
-from contextlib import closing
 import os
 from pathlib import PurePath
 from file.models import File
@@ -298,13 +296,24 @@ class FileInit:
         return
 
     def get_same_file_group(self):
-        db_return = []
+
+        if not self.update_group_ids_by_file_size():
+            return False
+
+        if not self.update_group_ids_by_blake2_hash():
+            return False
+
+        return True
+
+    def update_group_ids_by_file_size(self):
+
         insertQuery = """
             WITH GroupedData AS (
                 SELECT
                     id,
                     full_path,
                     hash_md5,
+                    hash_blake2,
                     size,
                     mtime,
                     ctime,
@@ -313,37 +322,51 @@ class FileInit:
                     updated_at,
                     DENSE_RANK() OVER (ORDER BY size) AS group_id
                 FROM file_file
+            ),
+            GroupCount AS (
+                SELECT
+                    group_id,
+                    COUNT(*) AS row_count
+                FROM GroupedData
+                GROUP BY group_id
+                HAVING COUNT(*) > 1
             )
             SELECT
-                group_id,
-                id,
-                full_path,
-                hash_md5,
-                size,
-                mtime,
-                ctime,
-                extension,
-                created_at,
-                updated_at
-            FROM GroupedData
-            ORDER BY group_id
+                g.group_id,
+                g.id,
+                g.full_path,
+                g.hash_md5,
+                g.hash_blake2,
+                g.size,
+                g.mtime,
+                g.ctime,
+                g.extension,
+                g.created_at,
+                g.updated_at
+            FROM GroupedData g
+            JOIN GroupCount gc ON g.group_id = gc.group_id
+            ORDER BY g.group_id;
         """
+
+        SearchResult.objects.all().delete()
 
         data = File.objects.raw(insertQuery)
 
         for row in data:
+
+            blake2_hash = self.get_blake2(row.full_path)
+
             search_result_data = {
                 "group_id": row.group_id,
                 "file_id": row.id,
                 "full_path": row.full_path,
                 "hash_md5": row.hash_md5,
+                "hash_blake2": blake2_hash,
                 "size": row.size,
                 "mtime": row.mtime,
                 "ctime": row.ctime,
                 "extension": row.extension,
             }
-
-            SearchResult.objects.raw("truncate table file_searchresult")
 
             serializer = SearchResultSerializer(data=search_result_data)
             is_valid = serializer.is_valid(raise_exception=True)
@@ -356,6 +379,7 @@ class FileInit:
                         file_id=row.id,
                         full_path=row.full_path,
                         hash_md5=row.hash_md5,
+                        hash_blake2=blake2_hash,
                         size=row.size,
                         mtime=row.mtime,
                         ctime=row.ctime,
@@ -365,9 +389,93 @@ class FileInit:
 
                 except Exception as e:
                     print("update file is fault, error:", e)
+                    return False
 
-            db_return.append(search_result_data)
-        return db_return
+        return True
+
+    def update_group_ids_by_blake2_hash(self):
+
+        insertQuery = """
+                WITH GroupedData AS (
+                    SELECT
+                        id,
+                        full_path,
+                        hash_md5,
+                        hash_blake2,
+                        size,
+                        mtime,
+                        ctime,
+                        extension,
+                        created_at,
+                        updated_at,
+                        DENSE_RANK() OVER (ORDER BY hash_blake2) AS group_id
+                    FROM file_searchresult
+                ),
+                GroupCount AS (
+                    SELECT
+                        group_id,
+                        COUNT(*) AS row_count
+                    FROM GroupedData
+                    GROUP BY group_id
+                    HAVING COUNT(*) > 1
+                )
+                SELECT
+                    g.group_id,
+                    g.id,
+                    g.full_path,
+                    g.hash_md5,
+                    g.hash_blake2,
+                    g.size,
+                    g.mtime,
+                    g.ctime,
+                    g.extension,
+                    g.created_at,
+                    g.updated_at
+                FROM GroupedData g
+                JOIN GroupCount gc ON g.group_id = gc.group_id
+                ORDER BY g.group_id;
+            """
+
+        data = SearchResult.objects.raw(insertQuery)
+        _data = list(data)
+
+        SearchResult.objects.all().delete()
+
+        for row in _data:
+
+            try:
+                search_result_object = SearchResult(
+                    group_id=row.group_id,
+                    file_id=row.id,
+                    full_path=row.full_path,
+                    hash_md5=row.hash_md5,
+                    hash_blake2=row.hash_blake2,
+                    size=row.size,
+                    mtime=row.mtime,
+                    ctime=row.ctime,
+                    extension=row.extension,
+                )
+                search_result_object.save()
+
+            except Exception as e:
+                print("update file is fault, error:", e)
+                return False
+
+        return True
+
+    def save_file_hash(self):
+
+        search_files = SearchResult.objects.all()
+
+        for search_file in search_files:
+            if os.path.isfile(search_file.full_path):
+                search_file_id = search_file.id
+                blake2_hash = self.get_blake2(search_file.full_path)
+                SearchResult.objects.filter(id=search_file_id).update(
+                    hash_blake2=blake2_hash
+                )
+
+                print(blake2_hash)
 
     def delete_all_data(self):
         File.objects.all().delete()
