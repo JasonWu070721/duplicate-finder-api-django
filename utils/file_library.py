@@ -399,6 +399,7 @@ class FileInit:
                 WITH GroupedData AS (
                     SELECT
                         id,
+                        file_id,
                         full_path,
                         hash_md5,
                         hash_blake2,
@@ -417,11 +418,12 @@ class FileInit:
                         COUNT(*) AS row_count
                     FROM GroupedData
                     GROUP BY group_id
-                    HAVING COUNT(*) > 1
+                    HAVING COUNT(*) = 1
                 )
                 SELECT
-                    g.group_id,
                     g.id,
+                    g.group_id,
+                    g.file_id,
                     g.full_path,
                     g.hash_md5,
                     g.hash_blake2,
@@ -437,29 +439,13 @@ class FileInit:
             """
 
         data = SearchResult.objects.raw(insertQuery)
-        _data = list(data)
 
-        SearchResult.objects.all().delete()
-
-        for row in _data:
-
-            try:
-                search_result_object = SearchResult(
-                    group_id=row.group_id,
-                    file_id=row.id,
-                    full_path=row.full_path,
-                    hash_md5=row.hash_md5,
-                    hash_blake2=row.hash_blake2,
-                    size=row.size,
-                    mtime=row.mtime,
-                    ctime=row.ctime,
-                    extension=row.extension,
-                )
-                search_result_object.save()
-
-            except Exception as e:
-                print("update file is fault, error:", e)
-                return False
+        try:
+            for row in data:
+                SearchResult.objects.filter(id=row.id).delete()
+        except Exception as e:
+            print("update file is fault, error:", e)
+            return False
 
         return True
 
@@ -475,7 +461,9 @@ class FileInit:
                     hash_blake2=blake2_hash
                 )
 
-                print(blake2_hash)
+                return blake2_hash
+
+        return None
 
     def delete_all_data(self):
         File.objects.all().delete()
