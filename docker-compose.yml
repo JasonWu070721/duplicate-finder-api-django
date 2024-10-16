@@ -39,11 +39,12 @@ services:
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     ports:
-      - "3306:3306"
+      - ${MYSQL_HOST_PORT}:${MYSQL_CONTAINER_PORT}
     env_file:
       - .env
     environment:
       MYSQL_HOST: mysql
+      MYSQL_PORT: ${MYSQL_CONTAINER_PORT}
       MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
@@ -53,4 +54,4 @@ services:
   redis:
     image: "redis:latest"
     ports:
-      - "6379:6379"
+      - ${REDIS_PORT}:${REDIS_PORT}

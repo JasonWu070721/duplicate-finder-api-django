@@ -12,7 +12,7 @@ class FileViewSet(viewsets.ModelViewSet):
     queryset = File.objects.all()
 
     serializer_class = FileSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "put", "delete"]
     lookup_field = "pk"
 

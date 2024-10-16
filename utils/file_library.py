@@ -217,7 +217,12 @@ class FileInit:
 
     def order_file_table(self, column_name):
         files_db = None
-        files_db = File.objects.order_by(column_name)
+
+        try:
+            files_db = File.objects.order_by(column_name)
+        except Exception as e:
+            print("order file table is fault, error:", e)
+            return None
 
         return files_db
 
@@ -229,10 +234,8 @@ class FileInit:
                 queryset = File.objects.filter(file_path=file_path)
                 serializer = FileSerializer(queryset, many=True)
                 db_return = serializer.data
-                return db_return
-
-            except Exception:
-                pass
+            except Exception as e:
+                print("get file is fault, error:", e)
 
         return db_return
 
@@ -303,6 +306,47 @@ class FileInit:
         if not self.update_group_ids_by_blake2_hash():
             return False
 
+        if not self.regroup_id():
+            return False
+
+        return True
+
+    def regroup_id(self):
+        insertQuery = """
+                SELECT 
+                    id,
+                    group_id,
+                    hash_blake2,
+                    hash_md5,
+                    created_at,
+                    updated_at
+                FROM file_searchresult fs 
+                ORDER BY hash_blake2 ASC;
+            """
+
+        try:
+            data = SearchResult.objects.raw(insertQuery)
+        except Exception as e:
+            print("get SearchResult is fault, error:", e)
+            return False
+
+        pre_blake2_hash = None
+        group_id = 0
+
+        for row in data:
+            blake2_hash = row.hash_blake2
+
+            if pre_blake2_hash != blake2_hash:
+                group_id = group_id + 1
+
+            try:
+                SearchResult.objects.filter(id=row.id).update(group_id=group_id)
+            except Exception as e:
+                print("update SearchResult is fault, error:", e)
+                return False
+
+            pre_blake2_hash = blake2_hash
+
         return True
 
     def update_group_ids_by_file_size(self):
@@ -348,9 +392,16 @@ class FileInit:
             ORDER BY g.group_id;
         """
 
-        SearchResult.objects.all().delete()
+        try:
+            SearchResult.objects.all().delete()
+        except Exception as e:
+            print("delete SearchResult is fault, error:", e)
+            return False
 
-        data = File.objects.raw(insertQuery)
+        try:
+            data = File.objects.raw(insertQuery)
+        except Exception as e:
+            print("get File is fault, error:", e)
 
         for row in data:
 
@@ -440,33 +491,47 @@ class FileInit:
 
         data = SearchResult.objects.raw(insertQuery)
 
-        try:
-            for row in data:
+        for row in data:
+            try:
                 SearchResult.objects.filter(id=row.id).delete()
-        except Exception as e:
-            print("update file is fault, error:", e)
-            return False
+            except Exception as e:
+                print("update file is fault, error:", e)
+                return False
 
         return True
 
     def save_file_hash(self):
 
-        search_files = SearchResult.objects.all()
+        try:
+            search_files = SearchResult.objects.all()
+        except Exception as e:
+            print("get SearchResult is fault, error:", e)
+            return None
 
         for search_file in search_files:
             if os.path.isfile(search_file.full_path):
                 search_file_id = search_file.id
                 blake2_hash = self.get_blake2(search_file.full_path)
-                SearchResult.objects.filter(id=search_file_id).update(
-                    hash_blake2=blake2_hash
-                )
+
+                try:
+                    SearchResult.objects.filter(id=search_file_id).update(
+                        hash_blake2=blake2_hash
+                    )
+                except Exception as e:
+                    print("update SearchResult is fault, error:", e)
+                    return None
 
                 return blake2_hash
 
         return None
 
     def delete_all_data(self):
-        File.objects.all().delete()
+        try:
+            File.objects.all().delete()
+        except Exception as e:
+            print("delete file is fault, error:", e)
+            return False
+        return True
 
     def delete_other_reserve_path_file(self, same_file_record_list, reserve_path):
         for same_file_record in same_file_record_list:
